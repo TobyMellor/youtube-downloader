@@ -156,6 +156,10 @@ return [
         App\Providers\EventServiceProvider::class,
         App\Providers\RouteServiceProvider::class,
 
+        /*
+         * Additional Service Providers
+         */
+	    Alaouy\Youtube\YoutubeServiceProvider::class
     ],
 
     /*
@@ -200,8 +204,7 @@ return [
         'Storage' => Illuminate\Support\Facades\Storage::class,
         'URL' => Illuminate\Support\Facades\URL::class,
         'Validator' => Illuminate\Support\Facades\Validator::class,
-        'View' => Illuminate\Support\Facades\View::class,
-
+        'View' => Illuminate\Support\Facades\View::class
     ],
 
 ];
