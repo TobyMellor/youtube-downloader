@@ -44,10 +44,21 @@ class DownloadController extends Controller
             $video = $youtube->getVideoInfo($videoId);
 
             if ($video != false) {
+                $command = 'pytube -e mp4 ' . escapeshellarg($data['youtube_url']);
+
+                $output = shell_exec($command);
+
+                $startsAt = strpos($output, '[') + 1;
+                $endsAt = strpos($output, ']', $startsAt);
+                $qualities = substr($output, $startsAt, $endsAt - $startsAt);
+
+                $qualities = explode(',', str_replace([' \'', '\''], '', $qualities));
+
                 return response()->json([
                     'error' => 0,
                     'message' => 'The video url was valid and the video exists.',
-                    'video' => $video
+                    'video' => $video,
+                    'qualities' => $qualities
                 ]);
             }
         }
@@ -64,49 +75,22 @@ class DownloadController extends Controller
 
         $data = [
             'youtube_id' => $youtubeId,
-            'quality' => $request->get('quality')
+            'quality' => $request->get('quality'),
+            'format' => $request->get('format')
         ];
 
         $validation = $this->getDownloadValidator($data);
 
         if (!$validation->fails()) {
-            $requestedQuality = $this->getDownloadQuality($data['quality']);
+            @unlink(public_path('media/' . $data['youtube_id'] . '.' . $data['format']));
 
-            if ($requestedQuality == 'best') {
-                $command = 'cd ' . public_path('media/') . ' && youtube-dl https://www.youtube.com/watch?v=' . $data['youtube_id'] . ' --id --recode-video mp4';
-            } else {
-                $command = 'cd ' . public_path('media/') . ' && youtube-dl -f "best[height=' . $requestedQuality . ']" https://www.youtube.com/watch?v=' . $data['youtube_id'] . ' --id --recode-video mp4';
-            }
+            $command = 'cd ' . public_path('media/') . ' && pytube -e ' . escapeshellarg($data['format']) . ' -r ' . escapeshellarg($data['quality']) . ' -f ' . escapeshellarg($data['youtube_id']) . ' ' . escapeshellarg('https://www.youtube.com/watch?v=' . $data['youtube_id']);
+            
+            shell_exec($command);
 
-            shell_exec($command); // TODO: Escape shell TODO: Heights may vary
-
-            return response()->download(public_path('media/' . $data['youtube_id'] . '.mp4'));
+            return response()->download(public_path('media/' . $data['youtube_id'] . '.' . $data['format']));
         } else {
             var_dump($validation->errors());
-        }
-    }
-
-    private function getDownloadQuality($downloadQuality)
-    {
-        switch ($downloadQuality) {
-            case 'hd2160':
-                return '2160';
-            case 'hd1440':
-                return '1440';
-            case 'hd1080':
-                return '1080';
-            case 'hd720':
-                return '720';
-            case 'large':
-                return '480';
-            case 'medium':
-                return '360';
-            case 'small':
-                return '240';
-            case 'tiny':
-                return '144';
-            default:
-                return 'best';
         }
     }
 
@@ -131,7 +115,8 @@ class DownloadController extends Controller
     {
         return Validator::make($data, [
             'youtube_id' => 'required|size:11',
-            'quality' => 'required|in:hd2160,hd1440,hd1080,hd720,large,medium,small,tiny,best'
+            'quality' => 'required',
+            'format' => 'required'
         ]);
     }
 }
